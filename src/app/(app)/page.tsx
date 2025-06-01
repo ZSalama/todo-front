@@ -2,65 +2,52 @@
 import { Button } from '@/components/ui/button'
 import { useEffect, useState } from 'react'
 import AddTodo from './addTodo'
-import type { Todo } from '@/utils/types'
+import type { Todo, TodoRaw } from '@/utils/types'
 import { RefreshCw, X } from 'lucide-react'
+import { deleteTodoAction, getTodosAction } from './actions'
 
 export default function Home() {
     const [todoList, setTodoList] = useState<Todo[]>([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    const getTodos = () => {
+    const fetchTodos = () => {
         setLoading(true)
         setError(null)
-        // fetch all weather objects from API
-        console.log('Fetching weather data...')
-        fetch('http://localhost:5291/api/todo')
-            .then(async (res) => {
-                if (!res.ok) {
-                    const errorText = await res.text()
-                    throw new Error(`HTTP ${res.status}: ${errorText}`)
-                }
-                return res.json()
-            })
-            .then((data: Todo[]) => {
-                const convertedList: Todo[] = data.map((item) => ({
+
+        getTodosAction()
+            .then((rawList: TodoRaw[]) => {
+                const converted: Todo[] = rawList.map((item) => ({
                     id: item.id,
                     title: item.title,
                     category: item.category,
-                    description: item.description,
+                    description: item.description ?? null,
                     createdAt: new Date(item.createdAt),
-                    dueDate: item.dueDate ? new Date(item.dueDate) : undefined,
+                    dueDate: new Date(item.dueDate),
                 }))
-                console.log('Todo data:', data)
-                setTodoList(convertedList)
+                setTodoList(converted)
             })
             .catch((err) => {
-                console.error('Failed to fetch weather data:', err)
-                setError(err.message)
+                console.error('getTodosAction error:', err)
+                setError((err as Error).message)
             })
             .finally(() => {
                 setLoading(false)
             })
     }
-
     // delete todo
     const deleteTodo = (id: string) => {
         setLoading(true)
         setError(null)
-        fetch(`http://localhost:5291/api/todo/${id}`, {
-            method: 'DELETE',
-        })
-            .then((res) => {
-                if (!res.ok) {
-                    throw new Error(`HTTP ${res.status}: ${res.statusText}`)
-                }
+        deleteTodoAction(id)
+            .then(() => {
+                console.log(`Todo with id ${id} deleted successfully`)
                 // Refresh the todo list after deletion
-                getTodos()
+                fetchTodos()
             })
             .catch((err) => {
-                console.error('Failed to delete todo:', err)
-                setError(err.message)
+                console.error('deleteTodoAction error:', err)
+                setError((err as Error).message)
             })
             .finally(() => {
                 setLoading(false)
@@ -68,7 +55,7 @@ export default function Home() {
     }
 
     useEffect(() => {
-        getTodos()
+        fetchTodos()
     }, [])
 
     return (
@@ -76,7 +63,7 @@ export default function Home() {
             {/* <Button onClick={handleClick} className='block m-4'>
                 add todo
             </Button> */}
-            <AddTodo refresh={getTodos} />
+            <AddTodo refresh={fetchTodos} />
             {/* Button to fetch all todos */}
             {/* Show a loading indicator */}
             {loading && <p>Loading…</p>}
@@ -89,7 +76,7 @@ export default function Home() {
                 <div className='m-4 mt-10'>
                     <div className='flex justify-between items-center mb-4'>
                         <h1 className='text-2xl font-bold'>Todo List</h1>
-                        <Button onClick={getTodos} className='cursor-pointer'>
+                        <Button onClick={fetchTodos} className='cursor-pointer'>
                             <RefreshCw />
                         </Button>
                     </div>
